@@ -1,4 +1,4 @@
-module pyBayesianInference
+module PyBayesianInference
 
 using PythonCall
 using CondaPkg
@@ -374,3 +374,4 @@ end
 
 
 end
+
