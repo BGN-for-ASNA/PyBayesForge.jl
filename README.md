@@ -89,7 +89,8 @@ Leveraging Just-In-Time (JIT) compilation via JAX, BI outperforms traditional en
 | Engine         | Execution Time                 | Relative Performance |
 |:---------------|:-------------------------------|:---------------------|
 | **STAN (CPU)** | `████████████████████████████` | *Baseline*           |
-| **BI (CPU)**   | `████████████`                 | **\~2.5x Faster**    |
+| **BI (CPU)**   | `████████████`                 | **\~30x Faster**     |
+| **BI (GPU)**   | `██`                           | **\~200x Faster**    |
 
 *\> Comparison of execution time for a Social Relations Model. Source: Sosa et al. (2025).*
 
