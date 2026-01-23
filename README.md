@@ -5,7 +5,8 @@
 **A Julia wrapper for the unified probabilistic programming library, bringing JAX-powered Bayesian inference to the Julia ecosystem.**\
 *Run bespoke models on CPU, GPU, or TPU with Julia's native syntax.*
 
-[![License: GPL (\>= 3)](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Julia](https://img.shields.io/badge/Julia-1+-9558B2?logo=julia)](https://julialang.org/)
+[![Website](https://img.shields.io/badge/Website-s--sosa.com/BI-blue?style=flat&logo=google-chrome&logoColor=white)](https://s-sosa.com/BI/) [![bioRxiv](https://img.shields.io/badge/bioRxiv-10.64898%2F2026.01.19.700318v1-BD271E?style=flat&logo=biorxiv&logoColor=white)](https://www.biorxiv.org/content/10.64898/2026.01.19.700318v1)  [![Julia](https://img.shields.io/badge/Julia-1+-9558B2?logo=julia)](https://julialang.org/) [![License: GPL (\>= 3)](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 </div>
 
 ---
@@ -92,7 +93,7 @@ Leveraging Just-In-Time (JIT) compilation via JAX, BI outperforms traditional en
 | **BI (CPU)**   | `████████████`                 | **\~30x Faster**     |
 | **BI (GPU)**   | `██`                           | **\~200x Faster**    |
 
-*\> Comparison of execution time for a Social Relations Model. Source: Sosa et al. (2025).*
+*\> Comparison of execution time for a Social Relations Model. Source: [Sosa et al. (2026)](https://www.biorxiv.org/content/10.64898/2026.01.19.700318v1).*
 
 ---
 
@@ -308,10 +309,10 @@ GPU support available on compatible systems with JAX GPU installation.
 ---
 
 <div align="center">
-**BayesianInference.jl (BIJ)**\
-Based on "The Bayesian Inference library for Python, R, Julia" by Sosa, McElreath, & Ross (2025).
+**PyBayesianInference.jl (BIJ)**\
+Based on "The Bayesian Inference library for Python, R, Julia" by [Sosa, McElreath, & Ross (2026)](https://www.biorxiv.org/content/10.64898/2026.01.19.700318v1).
 
-[GitHub](https://github.com/BGN-for-ASNA/BIJ) \| [Issues](https://github.com/BGN-for-ASNA/BIJ/issues) \| [Quick Start](QUICKSTART.md)
+[Official website](https://s-sosa.com/BI) \| [Issues](https://github.com/BGN-for-ASNA/BIJ/issues) \| [Quick Start](https://s-sosa.com/BI/start/Installation.html)
 
-© 2025 BayesianInference Team. Released under GPL-3.0.
+© 2026 Bayesian Inference Team. Released under GPL-3.0.
 </div>

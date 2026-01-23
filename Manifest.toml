@@ -2,7 +2,7 @@
 
 julia_version = "1.12.1"
 manifest_format = "2.0"
-project_hash = "eefdde6e1239139176cc0ebb4681931365b60e5f"
+project_hash = "3d2610994ffe1407434907d6dbcd934cfbba4254"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -15,12 +15,6 @@ version = "1.11.0"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
-
-[[deps.BayesianInference]]
-deps = ["CondaPkg", "PythonCall"]
-path = "."
-uuid = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
-version = "0.1.0"
 
 [[deps.CondaPkg]]
 deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "Preferences", "Scratch", "TOML", "pixi_jll"]
@@ -200,6 +194,12 @@ version = "1.5.0"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
+
+[[deps.PyBayesianInference]]
+deps = ["CondaPkg", "PythonCall"]
+path = "."
+uuid = "d122d8d1-e425-46db-8770-26312790ade9"
+version = "0.1.1"
 
 [[deps.PythonCall]]
 deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Pkg", "Serialization", "Tables", "UnsafePointers"]
