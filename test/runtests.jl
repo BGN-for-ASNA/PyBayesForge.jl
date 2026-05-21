@@ -1,23 +1,23 @@
 using Test
-using PyBayesianInference
+using BIJ
 using PythonCall
 
-@testset "BayesianInference.jl" begin
+@testset "BIJ.jl" begin
 
     @testset "Module exports" begin
         # Test that main functions and macros are exported
-        @test isdefined(PyBayesianInference, :importBI)
-        @test isdefined(PyBayesianInference, :jnp)
-        @test isdefined(PyBayesianInference, :jax)
-        @test isdefined(PyBayesianInference, Symbol("@BI"))
-        @test isdefined(PyBayesianInference, Symbol("@pyplot"))
+        @test isdefined(BIJ, :importBI)
+        @test isdefined(BIJ, :jnp)
+        @test isdefined(BIJ, :jax)
+        @test isdefined(BIJ, Symbol("@BI"))
+        @test isdefined(BIJ, Symbol("@pyplot"))
     end
 
     @testset "Python interop basics" begin
         # Test that pybuiltins, pydict, pylist are accessible
-        @test isdefined(PyBayesianInference, :pybuiltins)
-        @test isdefined(PyBayesianInference, :pydict)
-        @test isdefined(PyBayesianInference, :pylist)
+        @test isdefined(BIJ, :pybuiltins)
+        @test isdefined(BIJ, :pydict)
+        @test isdefined(BIJ, :pylist)
     end
 
     @testset "BI Initialization" begin
@@ -47,7 +47,7 @@ using PythonCall
             return x + y
         end
 
-        @test typeof(test_model) == PyBayesianInference.InspectableFunction
+        @test typeof(test_model) == BIJ.InspectableFunction
         @test test_model(2, 3) == 5
     end
 end

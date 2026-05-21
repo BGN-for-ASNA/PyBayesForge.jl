@@ -1,4 +1,4 @@
-module PyBayesianInference
+module BIJ
 
 using PythonCall
 using CondaPkg

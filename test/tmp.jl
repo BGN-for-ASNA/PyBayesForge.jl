@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(".")  # Activate the current project environment
-using PyBayesianInference
+using BIJ
 
 # Setup device------------------------------------------------
 m = importBI(platform="cpu")

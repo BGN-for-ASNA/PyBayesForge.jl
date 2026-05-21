@@ -109,7 +109,7 @@ Download and install [Julia 1.12 or later](https://julialang.org/downloads/)
 
 ``` julia
 using Pkg
-Pkg.add("BayesianInference")
+Pkg.add("BIJ")
 ```
 
 #### Development Installation
@@ -132,7 +132,7 @@ Then in Julia:
 ``` julia
 using Pkg
 Pkg.instantiate()
-using BayesianInference
+using BIJ
 ```
 
 ### 3. Initialize Environment
@@ -140,7 +140,7 @@ using BayesianInference
 The package automatically manages Python dependencies via CondaPkg. On first use:
 
 ``` julia
-using BayesianInference
+using BIJ
 # Python dependencies are installed automatically
 m = importBI()  # This will set up the environment on first run
 ```
@@ -162,7 +162,7 @@ m = importBI(platform="gpu")
 ## Quick Start
 
 ``` julia
-using BayesianInference
+using BIJ
 
 # Initialize BI
 m = importBI()

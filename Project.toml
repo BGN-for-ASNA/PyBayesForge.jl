@@ -1,5 +1,5 @@
-name = "PyBayesianInference"
-uuid = "d122d8d1-e425-46db-8770-26312790ade9"
+name = "BIJ"
+uuid = "57f7871e-0c7c-4b53-b755-28b054770a56"
 version = "0.1.1"
 
 [deps]
