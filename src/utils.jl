@@ -46,14 +46,14 @@ function update_package()
     println("🔄 Checking for updates...")
     CondaPkg.update()
     
-    println("\n📦 [BayesInference] Installation Details:")
+    println("\n📦 [BayesForge] Installation Details:")
     try
         # Run pip show within the specific Conda environment
         CondaPkg.withenv() do
-            run(`pip show BayesInference`)
+            run(`pip show BayesForge`)
         end
     catch
-        println("⚠️ Could not retrieve package details. Is 'BayesInference' installed?")
+        println("⚠️ Could not retrieve package details. Is 'BayesForge' installed?")
     end
 
     println("\n❗ IMPORTANT: If a new version was installed, you must RESTART your Jupyter Kernel or Julia Session for the changes to take effect.")

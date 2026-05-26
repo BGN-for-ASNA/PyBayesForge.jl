@@ -1,9 +1,9 @@
 using Pkg
 Pkg.activate(".")  # Activate the current project environment
-using BIJ
+using PyBayseforge
 
 # Setup device------------------------------------------------
-m = importBI(platform="cpu")
+m = importBF(platform="cpu")
 
 # Import Data & Data Manipulation ------------------------------------------------
 # Import
@@ -13,7 +13,7 @@ m.df = m.df[m.df.age>18] # Subset data to adults
 m.scale(["weight"]) # Normalize
 
 # Define model ------------------------------------------------
-@BI function model(weight, height)
+@BF function model(weight, height)
     # Priors
     a = m.dist.normal(178, 20, name='a')
     b = m.dist.log_normal(0, 1, name='b')

@@ -1,5 +1,7 @@
-# Bayesian Inference for Julia
+# PyBayseforge.jl
 
+> [!NOTE]
+> **Package Rebranding Announcement**: This submission is the successor of the package `BayesianInference.jl` (and the Julia wrapper `BFJ.jl`), which is being renamed to `PyBayseforge.jl` for consistency reasons. The previous packages will be deprecated and will point to this one.
 
 <div align="center">
 **A Julia wrapper for the unified probabilistic programming library, bringing JAX-powered Bayesian inference to the Julia ecosystem.**\
@@ -13,7 +15,7 @@
 
 ## One Mental Model. Three Languages.
 
-**BayesianInference (BI)** provides a unified experience across Julia, Python, and R. Whether you work in R's formula syntax, Python's object-oriented approach, or Julia's mathematical elegance, the model logic remains consistent.
+**BayesForge (BF)** provides a unified experience across Julia, Python, and R. Whether you work in R's formula syntax, Python's object-oriented approach, or Julia's mathematical elegance, the model logic remains consistent.
 
 -   ✅ **Zero Context Switching**: Variable names, distribution signatures, and model logic remain consistent across all implementations.
 -   ✅ **NumPyro Power**: All interfaces compile down to XLA via JAX for blazing fast inference.
@@ -31,7 +33,7 @@
 <td valign="top">
 
 ```Julia
-@BI function model(weight, height)
+@BF function model(weight, height)
     # Priors
     sigma = bi.dist.uniform(0, 50, name='sigma', shape=(1,))
     alpha = bi.dist.normal(178, 20, name='alpha', shape=(1,))
@@ -109,21 +111,21 @@ Download and install [Julia 1.12 or later](https://julialang.org/downloads/)
 
 ``` julia
 using Pkg
-Pkg.add("BIJ")
+Pkg.add("PyBayseforge")
 ```
 
 #### Development Installation
 
 ``` julia
 using Pkg
-Pkg.add(url="https://github.com/BGN-for-ASNA/BIJ")
+Pkg.add(url="https://github.com/BGN-for-ASNA/PyBayseforge")
 ```
 
 Or clone the repository and activate it locally:
 
 ``` bash
-git clone https://github.com/BGN-for-ASNA/BIJ.git
-cd BIJ
+git clone https://github.com/BGN-for-ASNA/PyBayseforge.git
+cd PyBayseforge
 julia --project=.
 ```
 
@@ -132,7 +134,7 @@ Then in Julia:
 ``` julia
 using Pkg
 Pkg.instantiate()
-using BIJ
+using PyBayseforge
 ```
 
 ### 3. Initialize Environment
@@ -140,9 +142,9 @@ using BIJ
 The package automatically manages Python dependencies via CondaPkg. On first use:
 
 ``` julia
-using BIJ
+using PyBayseforge
 # Python dependencies are installed automatically
-m = importBI()  # This will set up the environment on first run
+m = importBF()  # This will set up the environment on first run
 ```
 
 ### 4. Select Backend
@@ -151,10 +153,10 @@ Choose `"cpu"`, `"gpu"`, or `"tpu"` when importing the library.
 
 ``` julia
 # Initialize on CPU (default)
-m = importBI(platform="cpu")
+m = importBF(platform="cpu")
 
 # Or on GPU (requires JAX GPU installation)
-m = importBI(platform="gpu")
+m = importBF(platform="gpu")
 ```
 
 ---
@@ -162,17 +164,17 @@ m = importBI(platform="gpu")
 ## Quick Start
 
 ``` julia
-using BIJ
+using PyBayseforge
 
 # Initialize BI
-m = importBI()
+m = importBF()
 
 # Generate some data
 x = m.dist.normal(0, 1, shape=(100,), sample=true)
 y = m.dist.normal(0.2 + 0.6 * x, 1.2, sample=true)
 
 # Define a Bayesian linear regression model
-@BI function linear_model(; x, y)
+@BF function linear_model(; x, y)
     alpha = m.dist.normal(loc=0, scale=1, name="alpha")
     beta  = m.dist.normal(loc=0, scale=1, name="beta")
     sigma = m.dist.exponential(1, name="sigma")
@@ -199,7 +201,7 @@ end
 
 ### Julia-Specific Features
 
--   **`@BI` Macro**: Define models with proper Python interoperability
+-   **`@BF` Macro**: Define models with proper Python interoperability
 -   **`@pyplot` Macro**: Display matplotlib plots directly in Julia
 -   **JAX Integration**: Direct access to JAX's NumPy API (`jnp` and `jax` constants)
 -   **Automatic Array Conversion**: Seamless conversion between Julia and JAX arrays
@@ -287,7 +289,7 @@ For full documentation and examples:
 # test/usage_example.ipynb
 ```
 
-For help with specific functions in the underlying BI library, refer to the [BayesianInference documentation](https://github.com/BGN-for-ASNA/BIR).
+For help with specific functions in the underlying BF library, refer to the [BayesForge documentation](https://github.com/BGN-for-ASNA/BIR).
 
 ---
 
@@ -309,10 +311,10 @@ GPU support available on compatible systems with JAX GPU installation.
 ---
 
 <div align="center">
-**PyBayesianInference.jl (BIJ)**\
+**PyBayseforge.jl (PyBayseforge)**\
 Based on "The Bayesian Inference library for Python, R, Julia" by [Sosa, McElreath, & Ross (2026)](https://www.biorxiv.org/content/10.64898/2026.01.19.700318v1).
 
-[Official website](https://s-sosa.com/BI) \| [Issues](https://github.com/BGN-for-ASNA/BIJ/issues) \| [Quick Start](https://s-sosa.com/BI/start/Installation.html)
+[Official website](https://s-sosa.com/BI) \| [Issues](https://github.com/BGN-for-ASNA/PyBayseforge/issues) \| [Quick Start](https://s-sosa.com/BI/start/Installation.html)
 
 © 2026 Bayesian Inference Team. Released under GPL-3.0.
 </div>

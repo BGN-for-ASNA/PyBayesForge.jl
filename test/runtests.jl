@@ -1,33 +1,33 @@
 using Test
-using BIJ
+using PyBayseforge
 using PythonCall
 
-@testset "BIJ.jl" begin
+@testset "PyBayseforge.jl" begin
 
     @testset "Module exports" begin
         # Test that main functions and macros are exported
-        @test isdefined(BIJ, :importBI)
-        @test isdefined(BIJ, :jnp)
-        @test isdefined(BIJ, :jax)
-        @test isdefined(BIJ, Symbol("@BI"))
-        @test isdefined(BIJ, Symbol("@pyplot"))
+        @test isdefined(PyBayseforge, :importBF)
+        @test isdefined(PyBayseforge, :jnp)
+        @test isdefined(PyBayseforge, :jax)
+        @test isdefined(PyBayseforge, Symbol("@BF"))
+        @test isdefined(PyBayseforge, Symbol("@pyplot"))
     end
 
     @testset "Python interop basics" begin
         # Test that pybuiltins, pydict, pylist are accessible
-        @test isdefined(BIJ, :pybuiltins)
-        @test isdefined(BIJ, :pydict)
-        @test isdefined(BIJ, :pylist)
+        @test isdefined(PyBayseforge, :pybuiltins)
+        @test isdefined(PyBayseforge, :pydict)
+        @test isdefined(PyBayseforge, :pylist)
     end
 
-    @testset "BI Initialization" begin
+    @testset "BF Initialization" begin
         # Test basic initialization
         # Note: This may take time on first run as CondaPkg sets up the environment
-        println("Initializing BI (may take time on first run)...")
-        m = importBI(print_devices_found=false)
+        println("Initializing BF (may take time on first run)...")
+        m = importBF(print_devices_found=false)
         @test !isnothing(m)
         @test pyhasattr(m, "dist")
-        println("✓ BI initialized successfully")
+        println("✓ BF initialized successfully")
     end
 
     @testset "JAX/NumPy availability" begin
@@ -42,12 +42,12 @@ using PythonCall
     end
 
     @testset "InspectableFunction wrapper" begin
-        # Test the @BI macro creates proper wrapper
-        @BI function test_model(x, y)
+        # Test the @BF macro creates proper wrapper
+        @BF function test_model(x, y)
             return x + y
         end
 
-        @test typeof(test_model) == BIJ.InspectableFunction
+        @test typeof(test_model) == PyBayseforge.InspectableFunction
         @test test_model(2, 3) == 5
     end
 end

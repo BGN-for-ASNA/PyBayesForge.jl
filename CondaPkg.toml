@@ -1,7 +1,10 @@
+[deps]
+numpy = "==2.2.6"
+
 [pip]
 ipython = ""
-BayesInference = ""
+BayesForge = ""
 
     [pip.deps]
     ipython = ""
-    bayesinference = ""
+    bayesforge = { version = "@ file:///home/sosa/work/BF", editable = true }

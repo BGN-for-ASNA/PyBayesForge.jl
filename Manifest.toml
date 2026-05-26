@@ -2,7 +2,7 @@
 
 julia_version = "1.12.1"
 manifest_format = "2.0"
-project_hash = "a6409bfda41522ec2c245b5d37685489750a99b3"
+project_hash = "ba488a08aee07c3c45b9525a36c72e9bd3a13611"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -11,12 +11,6 @@ version = "1.1.2"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
-
-[[deps.BIJ]]
-deps = ["CondaPkg", "PythonCall"]
-path = "."
-uuid = "57f7871e-0c7c-4b53-b755-28b054770a56"
-version = "0.1.1"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -196,6 +190,12 @@ version = "1.5.2"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
+
+[[deps.PyBayseforge]]
+deps = ["CondaPkg", "PythonCall"]
+path = "."
+uuid = "57f7871e-0c7c-4b53-b755-28b054770a56"
+version = "0.1.1"
 
 [[deps.PythonCall]]
 deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Preferences", "Serialization", "Tables", "UnsafePointers"]
