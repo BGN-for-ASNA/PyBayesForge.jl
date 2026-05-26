@@ -1,7 +1,7 @@
-# PyBayseforge.jl
+# PyBayesForge.jl
 
 > [!NOTE]
-> **Package Rebranding Announcement**: This submission is the successor of the package `BayesianInference.jl` (and the Julia wrapper `BFJ.jl`), which is being renamed to `PyBayseforge.jl` for consistency reasons. The previous packages will be deprecated and will point to this one.
+> **Package Rebranding Announcement**: This submission is the successor of the package `BayesianInference.jl` (and the Julia wrapper `BFJ.jl`), which is being renamed to `PyBayesForge.jl` for consistency reasons. The previous packages will be deprecated and will point to this one.
 
 <div align="center">
 **A Julia wrapper for the unified probabilistic programming library, bringing JAX-powered Bayesian inference to the Julia ecosystem.**\
@@ -111,21 +111,21 @@ Download and install [Julia 1.12 or later](https://julialang.org/downloads/)
 
 ``` julia
 using Pkg
-Pkg.add("PyBayseforge")
+Pkg.add("PyBayesForge")
 ```
 
 #### Development Installation
 
 ``` julia
 using Pkg
-Pkg.add(url="https://github.com/BGN-for-ASNA/PyBayseforge")
+Pkg.add(url="https://github.com/BGN-for-ASNA/PyBayesForge")
 ```
 
 Or clone the repository and activate it locally:
 
 ``` bash
-git clone https://github.com/BGN-for-ASNA/PyBayseforge.git
-cd PyBayseforge
+git clone https://github.com/BGN-for-ASNA/PyBayesForge.git
+cd PyBayesForge
 julia --project=.
 ```
 
@@ -134,7 +134,7 @@ Then in Julia:
 ``` julia
 using Pkg
 Pkg.instantiate()
-using PyBayseforge
+using PyBayesForge
 ```
 
 ### 3. Initialize Environment
@@ -142,7 +142,7 @@ using PyBayseforge
 The package automatically manages Python dependencies via CondaPkg. On first use:
 
 ``` julia
-using PyBayseforge
+using PyBayesForge
 # Python dependencies are installed automatically
 m = importBF()  # This will set up the environment on first run
 ```
@@ -164,7 +164,7 @@ m = importBF(platform="gpu")
 ## Quick Start
 
 ``` julia
-using PyBayseforge
+using PyBayesForge
 
 # Initialize BI
 m = importBF()
@@ -311,10 +311,10 @@ GPU support available on compatible systems with JAX GPU installation.
 ---
 
 <div align="center">
-**PyBayseforge.jl (PyBayseforge)**\
+**PyBayesForge.jl (PyBayesForge)**\
 Based on "The Bayesian Inference library for Python, R, Julia" by [Sosa, McElreath, & Ross (2026)](https://www.biorxiv.org/content/10.64898/2026.01.19.700318v1).
 
-[Official website](https://s-sosa.com/BI) \| [Issues](https://github.com/BGN-for-ASNA/PyBayseforge/issues) \| [Quick Start](https://s-sosa.com/BI/start/Installation.html)
+[Official website](https://s-sosa.com/BI) \| [Issues](https://github.com/BGN-for-ASNA/PyBayesForge/issues) \| [Quick Start](https://s-sosa.com/BI/start/Installation.html)
 
 © 2026 Bayesian Inference Team. Released under GPL-3.0.
 </div>

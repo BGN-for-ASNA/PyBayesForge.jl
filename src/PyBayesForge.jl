@@ -1,4 +1,4 @@
-module PyBayseforge
+module PyBayesForge
 
 using PythonCall
 using CondaPkg
@@ -295,7 +295,7 @@ macro BF(ex)
         $(esc(internal_def))
 
         # Assign the Wrapper to the User's name
-        # InspectableFunction is NOT escaped, so it refers to PyBayseforge.InspectableFunction
+        # InspectableFunction is NOT escaped, so it refers to PyBayesForge.InspectableFunction
         $(esc(user_func_name)) = InspectableFunction($(esc(internal_name)))
     end
 end

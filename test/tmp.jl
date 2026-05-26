@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(".")  # Activate the current project environment
-using PyBayseforge
+using PyBayesForge
 
 # Setup device------------------------------------------------
 m = importBF(platform="cpu")

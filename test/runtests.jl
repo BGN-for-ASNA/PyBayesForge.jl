@@ -1,23 +1,23 @@
 using Test
-using PyBayseforge
+using PyBayesForge
 using PythonCall
 
-@testset "PyBayseforge.jl" begin
+@testset "PyBayesForge.jl" begin
 
     @testset "Module exports" begin
         # Test that main functions and macros are exported
-        @test isdefined(PyBayseforge, :importBF)
-        @test isdefined(PyBayseforge, :jnp)
-        @test isdefined(PyBayseforge, :jax)
-        @test isdefined(PyBayseforge, Symbol("@BF"))
-        @test isdefined(PyBayseforge, Symbol("@pyplot"))
+        @test isdefined(PyBayesForge, :importBF)
+        @test isdefined(PyBayesForge, :jnp)
+        @test isdefined(PyBayesForge, :jax)
+        @test isdefined(PyBayesForge, Symbol("@BF"))
+        @test isdefined(PyBayesForge, Symbol("@pyplot"))
     end
 
     @testset "Python interop basics" begin
         # Test that pybuiltins, pydict, pylist are accessible
-        @test isdefined(PyBayseforge, :pybuiltins)
-        @test isdefined(PyBayseforge, :pydict)
-        @test isdefined(PyBayseforge, :pylist)
+        @test isdefined(PyBayesForge, :pybuiltins)
+        @test isdefined(PyBayesForge, :pydict)
+        @test isdefined(PyBayesForge, :pylist)
     end
 
     @testset "BF Initialization" begin
@@ -47,7 +47,7 @@ using PythonCall
             return x + y
         end
 
-        @test typeof(test_model) == PyBayseforge.InspectableFunction
+        @test typeof(test_model) == PyBayesForge.InspectableFunction
         @test test_model(2, 3) == 5
     end
 end

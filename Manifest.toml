@@ -191,7 +191,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
-[[deps.PyBayseforge]]
+[[deps.PyBayesForge]]
 deps = ["CondaPkg", "PythonCall"]
 path = "."
 uuid = "57f7871e-0c7c-4b53-b755-28b054770a56"
