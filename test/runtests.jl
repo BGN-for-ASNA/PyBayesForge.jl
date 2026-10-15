@@ -4,6 +4,8 @@ using PythonCall
 using DataFrames
 using MCMCChains
 
+m_has(m, k) = m.posteriors.__contains__(k)
+
 @testset "PyBayesForge.jl" begin
 
     @testset "Module exports" begin
@@ -112,5 +114,51 @@ using MCMCChains
 
         ch = Chains(m)
         @test size(ch) == (50, 3, 2)
+    end
+
+    @testset "enum = true and fit(sampler = ...) reach Python" begin
+        rng_y = [-2.1, -1.8, -2.4, 2.2, 1.9, 2.5, -2.0, 2.1, -1.7, 2.3,
+                 -2.2, 1.8, -1.9, 2.0, -2.3, 2.4, -2.0, 1.7, -2.5, 2.2]
+        function fit_mixture(mark; kw...)
+            m = importBF(platform = "cpu", rand_seed = 123, print_devices_found = false)
+            m.data_on_model = pydict(y = jnp.array(rng_y))
+            @BF function mix(y)
+                w = m.dist.dirichlet(jnp.ones(2), name = "w")
+                sigma = m.dist.exponential(1.0, name = "sigma")
+                mu = nothing
+                pywith(Py(m.dist.plate("components", 2))) do _
+                    mu = m.dist.normal(0.0, 5.0, name = "mu")
+                end
+                pywith(Py(m.dist.plate("N", length(rng_y)))) do _
+                    z = mark == :enum  ? m.dist.categorical(probs = w, name = "z", enum = true) :
+                        mark == :infer ? m.dist.categorical(probs = w, name = "z",
+                                                            infer = pydict(enumerate = "parallel")) :
+                                         m.dist.categorical(probs = w, name = "z")
+                    m.dist.normal(jnp.take(mu, z), sigma, obs = y)
+                end
+            end
+            m.fit(mix; num_samples = 100, num_warmup = 100, num_chains = 1, progress_bar = false, kw...)
+            m
+        end
+        np = pyimport("numpy")
+        draws(m, k) = pyconvert(Array{Float64}, np.asarray(m.posteriors[k]))
+        has_kw(f, k) = pyconvert(Bool, pyimport("inspect").signature(f).parameters.__contains__(k))
+        bfpy = pyimport("BayesForge")
+        if has_kw(bfpy.Distributions.np_dists.UnifiedDist.categorical, "enum")
+            a, b = fit_mixture(:enum), fit_mixture(:infer)
+            @test !pyconvert(Bool, m_has(a, "z"))
+            for k in ("w", "mu", "sigma")
+                @test draws(a, k) == draws(b, k)          # bit-identical
+            end
+        else
+            @info "installed BayesForge has no enum=; enum test skipped"
+        end
+        if has_kw(bfpy.bf.fit, "sampler")
+            g = fit_mixture(:none; sampler = "discrete_gibbs")
+            @test pyconvert(String, g.sampler_name) == "discrete_gibbs"
+            @test pyconvert(Bool, m_has(g, "z"))          # sampled, not summed out
+        else
+            @info "installed BayesForge has no fit(sampler=); sampler test skipped"
+        end
     end
 end
