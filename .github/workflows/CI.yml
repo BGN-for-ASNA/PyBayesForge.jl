@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "bayesforge[cpu] @ git+https://github.com/BGN-for-ASNA/BF.git@dev"
+          python -m pip install "bayesforge[cpu] @ https://github.com/BGN-for-ASNA/BF/archive/refs/heads/dev.zip"
           echo "JULIA_CONDAPKG_BACKEND=Null" >> "$GITHUB_ENV"
           echo "JULIA_PYTHONCALL_EXE=$(python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
       - uses: julia-actions/julia-buildpkg@v1
