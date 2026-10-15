@@ -1,6 +1,8 @@
 using Test
 using PyBayesForge
 using PythonCall
+using DataFrames
+using MCMCChains
 
 @testset "PyBayesForge.jl" begin
 
@@ -49,5 +51,66 @@ using PythonCall
 
         @test typeof(test_model) == PyBayesForge.InspectableFunction
         @test test_model(2, 3) == 5
+    end
+
+    @testset "Fit a model end to end" begin
+        m = importBF(platform = "cpu", rand_seed = 1, print_devices_found = false)
+        x = collect(range(-1, 1; length = 40))
+        y = 0.5 .+ 2.0 .* x .+ 0.1 .* cos.(7 .* x)
+        m.data_on_model = pydict(x = jnp.array(x), y = jnp.array(y))
+
+        @BF function linreg(x, y)
+            a = m.dist.normal(0, 5, name = "a")
+            b = m.dist.normal(0, 5, name = "b")
+            s = m.dist.exponential(1, name = "s")
+            m.dist.normal(a + b * x, s, obs = y)
+        end
+
+        m.fit(linreg, num_samples = 200, num_warmup = 200, num_chains = 1, progress_bar = false)
+        b_hat = pyconvert(Float64, m.posteriors["b"].mean().item())
+        @test isapprox(b_hat, 2.0; atol = 0.2)
+        @test pyconvert(Int, m.get_seed()) == 1
+    end
+
+    @testset "@BF infers parameter names from assignments" begin
+        m = importBF(platform = "cpu", rand_seed = 3, print_devices_found = false)
+        x = collect(range(-1, 1; length = 30))
+        m.data_on_model = pydict(x = jnp.array(x), y = jnp.array(0.5 .+ 2.0 .* x))
+        @BF function named(x, y)
+            a = m.dist.normal(0, 2)                    # name inferred: "a"
+            b = m.dist.normal(0, 2, name = "slope")    # explicit name kept
+            s = m.dist.exponential(1)                  # name inferred: "s"
+            m.dist.normal(a + b * x, s, obs = y)
+        end
+        m.fit(named, num_samples = 50, num_warmup = 50, num_chains = 1, progress_bar = false)
+        @test sort(pyconvert(Vector{String}, pybuiltins.list(m.posteriors.keys()))) == ["a", "s", "slope"]
+    end
+
+    @testset "Julia data frames in, Julia tables out" begin
+        m = importBF(platform = "cpu", rand_seed = 2, print_devices_found = false)
+        x = collect(range(-1, 1; length = 30))
+        df = DataFrame(x = x, y = 0.5 .+ 2.0 .* x .+ 0.1 .* cos.(7 .* x))
+        m.data(df)                         # a Julia DataFrame passed directly
+        @test pyconvert(Int, m.df.shape[0]) == 30
+        m.data_to_model(["x", "y"])
+
+        @BF function lin(x, y)
+            a = m.dist.normal(0, 2, name = "a", shape = (2,))
+            s = m.dist.exponential(1, name = "s")
+            m.dist.normal(a[0] + a[1] * x, s, obs = y)   # 0-based inside the model
+        end
+        m.fit(lin, num_samples = 50, num_warmup = 50, num_chains = 2, progress_bar = false)
+
+        t = bf_draws(m)
+        @test collect(keys(t)) == [:chain, :iteration, :draw, Symbol("a[1]"), Symbol("a[2]"), :s]
+        @test t.chain == repeat(1:2, inner = 50)
+        np = pyimport("numpy")
+        a = pyconvert(Array{Float64}, np.asarray(m.py.sampler.get_samples(group_by_chain = true)["a"]))
+        @test t[Symbol("a[2]")][50 + 7] == a[2, 7, 2]     # chain 2, iteration 7, element 2
+        @test isapprox(sum(t[Symbol("a[2]")]) / 100, 2.0; atol = 0.2)
+        @test size(DataFrame(t)) == (100, 6)
+
+        ch = Chains(m)
+        @test size(ch) == (50, 3, 2)
     end
 end

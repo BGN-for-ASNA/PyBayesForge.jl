@@ -2,6 +2,7 @@ module PyBayesForge
 
 using PythonCall
 using CondaPkg
+using Tables
 
 # Check if utils.jl exists in your folder, otherwise comment this out
 if isfile(joinpath(@__DIR__, "utils.jl"))
@@ -10,7 +11,7 @@ if isfile(joinpath(@__DIR__, "utils.jl"))
     export create_env, delete_env, install_package, update_package
 end
 
-export importBF, @BF, @pyplot, jnp, jax, pybuiltins, pydict, pylist
+export importBF, bf_draws, @BF, @pyplot, jnp, jax, pybuiltins, pydict, pylist
 
 # -------------------------------------------------------
 # BFObject Wrapper
@@ -48,6 +49,19 @@ Base.show(io::IO, mime::MIME"application/json", x::BFObject) = show(io, mime, x.
 PythonCall.pyconvert(T::Type, x::BFObject) = pyconvert(T, x.py)
 
 # -------------------------------------------------------
+# Julia -> Python argument conversion
+# -------------------------------------------------------
+
+# Julia tables (DataFrame or any Tables.jl source) become pandas DataFrames on
+# the Python side, so `m.data(df)` / `m.df = df` take a Julia data frame
+# directly. Arrays, dicts, named tuples and scalars keep PythonCall's default
+# conversion (a dict of vectors is also a Tables.jl table, but means data).
+_is_table(a) = !(a isa Union{AbstractArray,AbstractDict,NamedTuple,AbstractString,Number,Symbol,Nothing,Py}) &&
+               Tables.istable(a)
+_topy(a::BFObject) = a.py
+_topy(a) = _is_table(a) ? pytable(a, :pandas) : a
+
+# -------------------------------------------------------
 # BFObject Behavior
 # -------------------------------------------------------
 
@@ -73,10 +87,7 @@ function Base.setproperty!(x::BFObject, s::Symbol, v)
         return setfield!(x, :py, v)
     end
 
-    # Unwrap value if it's a BFObject
-    val = v isa BFObject ? v.py : v
-
-    setproperty!(x.py, s, val)
+    setproperty!(x.py, s, _topy(v))
 end
 
 # 2. Indexing
@@ -101,12 +112,9 @@ end
 
 # 3. Functor (Calling the object)
 function (obj::BFObject)(args...; kwargs...)
-    # Unwrap args
-    new_args = map(a -> a isa BFObject ? a.py : a, args)
-    new_kwargs = Dict{Symbol,Any}()
-    for (k, v) in kwargs
-        new_kwargs[k] = v isa BFObject ? v.py : v
-    end
+    # Unwrap BFObjects, convert Julia tables to pandas
+    new_args = map(_topy, args)
+    new_kwargs = Dict{Symbol,Any}(k => _topy(v) for (k, v) in kwargs)
 
     val = obj.py(new_args...; new_kwargs...)
 
@@ -157,7 +165,15 @@ Base.length(x::BFObject) = length(x.py)
 """
     importBF(; platform="cpu", cores=nothing, rand_seed=true, deallocate=false, print_devices_found=true, backend="numpyro")
 
-Initializes and returns the Python `BI` object from the `BayesForge` package.
+Initializes and returns a BayesForge session object (`bf` from the `BayesForge`
+Python package), wrapped for Julia. On first use CondaPkg installs the Python
+dependencies declared in `CondaPkg.toml`.
+
+# Example
+```julia
+using PyBayesForge
+m = importBF(platform = "cpu", rand_seed = 42)
+```
 """
 function importBF(;
     platform="cpu",
@@ -184,6 +200,54 @@ function importBF(;
     ))
 end
 
+"""
+    bf_draws(m)
+
+Posterior draws of a fitted model as a Tables.jl column table (a `NamedTuple`
+of vectors), one row per draw: `chain`, `iteration`, `draw`, then one column
+per scalar parameter element. A vector parameter `a` gives `Symbol("a[1]")`,
+`Symbol("a[2]")`, ...; a matrix parameter `S` gives `Symbol("S[1,1]")`, ...
+
+Column names are 1-based (Julia convention), whereas indexing *inside model
+code* is passed to Python and is 0-based: `a[0]` in the model is `a[1]` here.
+
+```julia
+using DataFrames
+df = DataFrame(bf_draws(m))
+```
+
+With MCMCChains loaded, `Chains(m)` gives an `MCMCChains.Chains` object.
+"""
+function bf_draws(m::BFObject)
+    np = pyimport("numpy")
+    samples = m.py.sampler.get_samples(group_by_chain = true)
+    names = Symbol[]
+    columns = Vector{Float64}[]
+    nchains = niter = 0
+    for key in samples.keys()
+        name = pyconvert(String, key)
+        arr = pyconvert(Array{Float64}, np.asarray(samples[key], dtype = "float64"))
+        nchains, niter = size(arr, 1), size(arr, 2)
+        # rows ordered by chain, then iteration
+        rows(slice) = vec(permutedims(slice))
+        if ndims(arr) == 2
+            push!(names, Symbol(name))
+            push!(columns, rows(arr))
+        else
+            trailing = size(arr)[3:end]
+            flat = reshape(arr, nchains, niter, prod(trailing))
+            for (k, idx) in enumerate(CartesianIndices(trailing))
+                push!(names, Symbol(name, "[", join(Tuple(idx), ","), "]"))
+                push!(columns, rows(flat[:, :, k]))
+            end
+        end
+    end
+    ids = (chain = repeat(1:nchains, inner = niter),
+           iteration = repeat(1:niter, outer = nchains),
+           draw = collect(1:nchains*niter))
+    return merge(ids, NamedTuple{Tuple(names)}(Tuple(columns)))
+end
+
 # -------------------------------------------------------
 # Function Wrapper & Macro
 # -------------------------------------------------------
@@ -208,61 +272,49 @@ function (obj::InspectableFunction)(args...; kwargs...)
 end
 
 # 3. Teach PythonCall how to convert it
-#    This is called automatically when you pass the object to Python
+#    Called automatically when the function is passed to Python (e.g. m.fit(model)).
+#    BayesForge matches model arguments to data by NAME, so the Python callable
+#    must expose the Julia argument names: build `lambda <names>: fn(<names>)`.
 function PythonCall.Py(obj::InspectableFunction)
     meth = first(methods(obj.f))
-
-    # Introspection: Get arg names (skip #self#)
-    # Note: This only reliably works for POSITIONAL arguments.
+    # Positional argument names (skip #self#)
     arg_names = [String(a) for a in Base.method_argnames(meth)[2:end]]
     args_str = join(arg_names, ", ")
 
-    # Create the lambda factory code
-    # We wrap the arguments in BFObject before passing them to the Julia function
-    lambda_code = "lambda fn: lambda $args_str: fn(*[BFObject(a) for a in ($args_str,)])"
+    # Explicit globals/locals dicts avoid "SystemError: frame does not exist"
+    factory = pybuiltins.eval("lambda fn: lambda $args_str: fn($args_str)",
+                              pybuiltins.dict(), pybuiltins.dict())
 
-    # FIX: Provide explicit globals/locals dictionaries to avoid SystemError
-    # We use pybuiltins.dict() to create empty Python dicts
-    globals_dict = pybuiltins.dict()
-    locals_dict = pybuiltins.dict()
-
-    # Inject BFObject into the globals so the lambda can use it?
-    # No, the lambda runs in Python, it calls `fn` (which is the Julia function).
-    # `fn` expects Julia objects.
-    # Wait, `fn` is `obj.f`.
-    # When Python calls `fn`, PythonCall converts Python args to Julia args.
-    # By default, PythonCall converts Python objects to `Py` (or `PyArray` etc).
-    # We want them to be `BFObject`.
-    # So we need to intercept the call to `fn`.
-
-    # Let's wrap `obj.f` in a Julia closure that wraps args.
-    wrapped_f = (args...; kwargs...) -> begin
-        new_args = map(a -> a isa PyWrappers ? BFObject(a) : a, args)
-        # Also handle kwargs if needed, but PythonCall passes kwargs as...
-        obj.f(new_args...; kwargs...)
-    end
-
-    # But `PythonCall.Py(obj::InspectableFunction)` returns a Python object factory.
-    # The factory takes `obj.f`.
-    # If we pass `wrapped_f` to the factory, it should work.
-
-    # Re-evaluating the lambda code:
-    lambda_code = "lambda fn: lambda $args_str: fn($args_str)"
-
-    globals_dict = pybuiltins.dict()
-    locals_dict = pybuiltins.dict()
-    factory = pybuiltins.eval(lambda_code, globals_dict, locals_dict)
-
-    # Wrap the function to convert Py args to BFObject
-    function wrapper(args...; kwargs...)
-        new_args = map(a -> a isa PyWrappers ? BFObject(a) : a, args)
-        # kwargs keys are Symbols, values are... Py?
-        # PythonCall converts kwargs values.
-        new_kwargs = kwargs # Simplified for now
-        obj.f(new_args...; new_kwargs...)
-    end
-
+    # Python passes Py objects; wrap them so the model body can use the
+    # BFObject interface (m.dist.normal(...), arithmetic, indexing).
+    wrapper(args...) = obj(args...)
     return factory(wrapper)
+end
+
+# Parameter names: `a = m.dist.normal(0, 1)` gets `name = "a"`, as in Python,
+# where BayesForge infers the name from the assigned variable. Python cannot
+# see Julia variable names, so the macro adds them when it expands.
+_is_dist_call(f) = f isa Expr && f.head === :. && length(f.args) == 2 &&
+                   f.args[1] isa Expr && f.args[1].head === :. &&
+                   f.args[1].args[end] == QuoteNode(:dist)
+
+function _has_name_kw(call::Expr)
+    for a in call.args[2:end]
+        a isa Expr || continue
+        a.head === :kw && a.args[1] === :name && return true
+        a.head === :parameters && any(p -> p isa Expr && p.head === :kw && p.args[1] === :name, a.args) && return true
+    end
+    return false
+end
+
+function _add_inferred_names!(ex)
+    ex isa Expr || return ex
+    if ex.head === :(=) && ex.args[1] isa Symbol && ex.args[2] isa Expr &&
+       ex.args[2].head === :call && _is_dist_call(ex.args[2].args[1]) && !_has_name_kw(ex.args[2])
+        push!(ex.args[2].args, Expr(:kw, :name, String(ex.args[1])))
+    end
+    foreach(_add_inferred_names!, ex.args)
+    return ex
 end
 
 # 4. The Macro for Python Models
@@ -286,6 +338,7 @@ macro BF(ex)
     # 3. DEEPCOPY the expression before modifying it.
     #    Using `copy()` is shallow and corrupts the input AST, causing the crash.
     internal_def = deepcopy(ex)
+    _add_inferred_names!(internal_def.args[2])
 
     # 4. Rename the function in the copy
     internal_def.args[1].args[1] = internal_name
