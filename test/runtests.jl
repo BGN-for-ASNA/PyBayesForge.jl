@@ -161,4 +161,30 @@ m_has(m, k) = m.posteriors.__contains__(k)
             @info "installed BayesForge has no fit(sampler=); sampler test skipped"
         end
     end
+
+    @testset "@BF names observed sites after the obs variable" begin
+        ex = PyBayesForge._add_inferred_names!(:(begin
+            x = m.dist.normal(0, 5)
+            m.dist.normal(x, 1, obs = y)
+            m.dist.normal(x, 1, obs = y .- 1)
+            m.dist.normal(x, 1, obs = y, name = "kept")
+        end))
+        names = String[]
+        walk(e) = e isa Expr && (e.head === :kw && e.args[1] === :name ?
+                                 push!(names, e.args[2]) : foreach(walk, e.args))
+        walk(ex)
+        @test names == ["x", "y", "obs", "kept"]
+
+        m = importBF(platform = "cpu", rand_seed = 4, print_devices_found = false)
+        t = collect(range(-1, 1; length = 25))
+        m.data_on_model = pydict(t = jnp.array(t), y = jnp.array(1 .+ 2 .* t))
+        @BF function latent_x(t, y)
+            x = m.dist.normal(0, 5)              # a latent called x
+            s = m.dist.exponential(1)
+            m.dist.normal(x + 0 * t, s, obs = y) # used to be named "x" too
+        end
+        m.fit(latent_x, num_samples = 50, num_warmup = 50, num_chains = 1, progress_bar = false)
+        @test sort(pyconvert(Vector{String}, pybuiltins.list(m.posteriors.keys()))) == ["s", "x"]
+        @test pyconvert(Vector{String}, pybuiltins.list(m._observed_sites(m.data_on_model).keys())) == ["y"]
+    end
 end

@@ -307,11 +307,31 @@ function _has_name_kw(call::Expr)
     return false
 end
 
+function _kw_value(call::Expr, key::Symbol)
+    for a in call.args[2:end]
+        a isa Expr || continue
+        a.head === :kw && a.args[1] === key && return a.args[2]
+        if a.head === :parameters
+            for p in a.args
+                p isa Expr && p.head === :kw && p.args[1] === key && return p.args[2]
+            end
+        end
+    end
+    return nothing
+end
+
 function _add_inferred_names!(ex)
     ex isa Expr || return ex
     if ex.head === :(=) && ex.args[1] isa Symbol && ex.args[2] isa Expr &&
        ex.args[2].head === :call && _is_dist_call(ex.args[2].args[1]) && !_has_name_kw(ex.args[2])
         push!(ex.args[2].args, Expr(:kw, :name, String(ex.args[1])))
+    end
+    # An observed site is named after the variable passed as obs (obs = y ->
+    # "y"), "obs" for an expression; before, it defaulted to "x" in Python and
+    # collided with a parameter called x. (Assignments were named just above.)
+    if ex.head === :call && _is_dist_call(ex.args[1]) && !_has_name_kw(ex)
+        obs = _kw_value(ex, :obs)
+        obs === nothing || push!(ex.args, Expr(:kw, :name, obs isa Symbol ? String(obs) : "obs"))
     end
     foreach(_add_inferred_names!, ex.args)
     return ex
