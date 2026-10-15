@@ -20,6 +20,19 @@ jobs:
         with:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v2
-      # CondaPkg installs the Python side (bayesforge, jax, ...) on first use.
+      # Test against BayesForge `dev` (the tests use features not yet on PyPI,
+      # e.g. m.data(DataFrame), observed-site helpers): install it in a plain
+      # Python and point PythonCall at it instead of letting CondaPkg resolve
+      # the published bayesforge. Users still get the CondaPkg.toml setup.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install BayesForge (dev)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "bayesforge[cpu] @ git+https://github.com/BGN-for-ASNA/BF.git@dev"
+          echo "JULIA_CONDAPKG_BACKEND=Null" >> "$GITHUB_ENV"
+          echo "JULIA_PYTHONCALL_EXE=$(python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
