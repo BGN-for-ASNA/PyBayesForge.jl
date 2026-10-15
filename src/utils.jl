@@ -16,10 +16,12 @@ end
 """
     delete_env()
 
-Removes the .CondaPkg directory, effectively deleting the environment.
+Deletes the CondaPkg environment of the active Julia project (where the Python
+dependencies of PyBayesForge are installed). It is recreated on next use.
 """
 function delete_env()
-    env_dir = joinpath(dirname(@__DIR__), ".CondaPkg")
+    # CondaPkg keeps the environment next to the active project's Project.toml
+    env_dir = joinpath(dirname(Base.active_project()), ".CondaPkg")
     if isdir(env_dir)
         rm(env_dir, recursive=true, force=true)
         println("Environment deleted at $env_dir")

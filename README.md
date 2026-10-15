@@ -118,7 +118,7 @@ Pkg.add("PyBayesForge")
 
 ``` julia
 using Pkg
-Pkg.add(url="https://github.com/BGN-for-ASNA/PyBayesForge")
+Pkg.add(url="https://github.com/BGN-for-ASNA/PyBayesForge.jl")
 ```
 
 Or clone the repository and activate it locally:
