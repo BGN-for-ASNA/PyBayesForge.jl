@@ -187,4 +187,29 @@ m_has(m, k) = m.posteriors.__contains__(k)
         @test sort(pyconvert(Vector{String}, pybuiltins.list(m.posteriors.keys()))) == ["s", "x"]
         @test pyconvert(Vector{String}, pybuiltins.list(m._observed_sites(m.data_on_model).keys())) == ["y"]
     end
+
+    @testset "tidy draws: long format with labels" begin
+        m = importBF(platform = "cpu", rand_seed = 6, print_devices_found = false)
+        g = repeat([0, 1, 2], inner = 10)
+        y = [1.0, 2.0, 3.0][g .+ 1] .+ 0.1 .* sin.(1:30)
+        m.data_on_model = pydict(g = jnp.array(g), y = jnp.array(y))
+        @BF function grp(g, y)
+            alpha = m.dist.normal(0, 5, shape = (3,))
+            s = m.dist.exponential(1)
+            m.dist.normal(alpha[g], s, obs = y)
+        end
+        m.fit(grp, num_samples = 100, num_warmup = 100, num_chains = 2, progress_bar = false)
+        levels = ["south", "north", "east"]
+        wide = bf_draws(m)
+        long = bf_draws(m; format = :long, labels = Dict("alpha" => levels))
+        @test collect(keys(long)) == [:chain, :iteration, :draw, :variable, :index, :value]
+        @test length(long.value) == length(wide.draw) * (length(keys(wide)) - 3)
+        for (k, lev) in enumerate(levels)
+            sel = (long.variable .== "alpha") .& isequal.(long.index, lev)
+            @test long.value[sel] == wide[Symbol("alpha[$k]")]
+        end
+        @test all(ismissing, long.index[long.variable .== "s"])
+        @test_throws ArgumentError bf_draws(m; format = :long, labels = Dict("beta" => ["a"]))
+        @test_throws ArgumentError bf_draws(m; format = :long, labels = Dict("alpha" => ["a"]))
+    end
 end

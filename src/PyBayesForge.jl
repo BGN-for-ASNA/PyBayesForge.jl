@@ -217,8 +217,52 @@ df = DataFrame(bf_draws(m))
 ```
 
 With MCMCChains loaded, `Chains(m)` gives an `MCMCChains.Chains` object.
+
+    bf_draws(m; format = :long, labels = Dict("alpha" => levels))
+
+`format = :long` gives the tidy layout, one row per draw and parameter
+element: `chain`, `iteration`, `draw`, `variable` (parameter name), `index`
+(element as a string, e.g. `"2"` or `"1,3"`; `missing` for a scalar) and
+`value`. `labels` replaces the index of a vector parameter by labels, e.g.
+the levels of the categorical variable whose 0-based codes index it.
 """
-function bf_draws(m::BFObject)
+function bf_draws(m::BFObject; format::Symbol = :wide, labels = Dict{String,Any}())
+    format in (:wide, :long) || throw(ArgumentError("format must be :wide or :long"))
+    wide = _bf_draws_wide(m)
+    format === :wide && return wide
+    return _bf_draws_long(wide, labels)
+end
+
+function _bf_draws_long(wide, labels)
+    ids = (:chain, :iteration, :draw)
+    cols = [c for c in keys(wide) if !(c in ids)]
+    n = length(wide.draw)
+    variable, index = String[], Union{String,Missing}[]
+    for c in cols
+        s = String(c)
+        mt = match(r"^([^\[]*)\[(.*)\]$", s)
+        push!(variable, mt === nothing ? s : mt.captures[1])
+        push!(index, mt === nothing ? missing : mt.captures[2])
+    end
+    for (v, labs) in labels
+        sel = findall(==(String(v)), variable)
+        isempty(sel) && throw(ArgumentError("labels: no parameter called $v"))
+        pos = [tryparse(Int, coalesce(index[i], "")) for i in sel]
+        (any(isnothing, pos) || maximum(pos) > length(labs)) &&
+            throw(ArgumentError("labels: $v needs one label per element ($(length(sel)))"))
+        for (i, p) in zip(sel, pos)
+            index[i] = string(labs[p])
+        end
+    end
+    return (chain = repeat(wide.chain, length(cols)),
+            iteration = repeat(wide.iteration, length(cols)),
+            draw = repeat(wide.draw, length(cols)),
+            variable = repeat(variable, inner = n),
+            index = repeat(index, inner = n),
+            value = reduce(vcat, [wide[c] for c in cols]))
+end
+
+function _bf_draws_wide(m::BFObject)
     np = pyimport("numpy")
     samples = m.py.sampler.get_samples(group_by_chain = true)
     names = Symbol[]
