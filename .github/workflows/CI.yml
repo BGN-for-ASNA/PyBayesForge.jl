@@ -34,5 +34,13 @@ jobs:
           python -m pip install "bayesforge[cpu] @ https://github.com/BGN-for-ASNA/BF/archive/refs/heads/dev.zip"
           echo "JULIA_CONDAPKG_BACKEND=Null" >> "$GITHUB_ENV"
           echo "JULIA_PYTHONCALL_EXE=$(python -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
+      # This package must agree with the compatibility matrix (compat.toml) of
+      # BGN-for-ASNA/BF: version, Python and minimum bayesforge.
+      - name: Check compatibility matrix
+        shell: bash
+        run: |
+          curl -fsSL -o check_compat.py https://raw.githubusercontent.com/BGN-for-ASNA/BF/dev/tools/check_compat.py
+          python check_compat.py --python BGN-for-ASNA/BF@dev --julia . --only julia | tee -a "$GITHUB_STEP_SUMMARY"
+          rm check_compat.py
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
