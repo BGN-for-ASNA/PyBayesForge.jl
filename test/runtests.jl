@@ -3,6 +3,8 @@ using PyBayesForge
 using PythonCall
 using DataFrames
 using MCMCChains
+using ArviZ
+using Statistics
 
 m_has(m, k) = m.posteriors.__contains__(k)
 
@@ -211,5 +213,33 @@ m_has(m, k) = m.posteriors.__contains__(k)
         @test all(ismissing, long.index[long.variable .== "s"])
         @test_throws ArgumentError bf_draws(m; format = :long, labels = Dict("beta" => ["a"]))
         @test_throws ArgumentError bf_draws(m; format = :long, labels = Dict("alpha" => ["a"]))
+    end
+
+    @testset "ArviZ.jl: convert_to_inference_data(m)" begin
+        m = importBF(platform = "cpu", rand_seed = 8, print_devices_found = false)
+        x = collect(range(-1, 1; length = 40))
+        y = 0.5 .+ 2.0 .* x .+ 0.2 .* sin.(5 .* x)
+        m.data_on_model = pydict(x = jnp.array(x), y = jnp.array(y))
+        @BF function lr(x, y)
+            a = m.dist.normal(0, 2)
+            b = m.dist.normal(0, 2)
+            s = m.dist.exponential(1)
+            m.dist.normal(a + b * x, s, obs = y)
+        end
+        m.fit(lr, num_samples = 200, num_warmup = 200, num_chains = 2, progress_bar = false)
+        idata = convert_to_inference_data(m)
+        @test :posterior in propertynames(idata)
+        @test :log_likelihood in propertynames(idata)
+        @test :observed_data in propertynames(idata)
+        np = pyimport("numpy")
+        b_py = pyconvert(Array{Float64}, np.asarray(m.py.sampler.get_samples(group_by_chain = true)["b"]))  # chains x draws
+        b_jl = Array(idata.posterior[:b])                                                                   # draws x chains
+        @test b_jl == permutedims(b_py, (2, 1))                       # same draws, ArviZ layout
+        @test size(Array(idata.log_likelihood[:y])) == (200, 2, 40)    # draws x chains x observations
+        @test Array(idata.observed_data[:y]) == y
+        @test isapprox(mean(b_jl), mean(b_py); rtol = 1e-12)
+        elpd_jl = loo(idata).estimates.elpd
+        elpd_py = pyconvert(Float64, m.py.diag.loo().elpd)
+        @test abs(elpd_jl - elpd_py) < 0.1                             # two PSIS-LOO implementations
     end
 end

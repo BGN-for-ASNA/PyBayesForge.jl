@@ -3,6 +3,7 @@ module PyBayesForge
 using PythonCall
 using CondaPkg
 using Tables
+import REPL
 
 # Check if utils.jl exists in your folder, otherwise comment this out
 if isfile(joinpath(@__DIR__, "utils.jl"))
@@ -44,6 +45,32 @@ Base.show(io::IO, mime::MIME"image/png", x::BFObject) = show(io, mime, x.py)
 Base.show(io::IO, mime::MIME"image/jpeg", x::BFObject) = show(io, mime, x.py)
 Base.show(io::IO, mime::MIME"image/svg+xml", x::BFObject) = show(io, mime, x.py)
 Base.show(io::IO, mime::MIME"application/json", x::BFObject) = show(io, mime, x.py)
+# Only the MIME types the Python object really renders (a plotly Figure: text/html),
+# so VS Code / Jupyter / Pluto pick its HTML instead of a format it cannot produce.
+Base.showable(mime::MIME, x::BFObject) = showable(mime, x.py)
+
+_is_plotly_figure(x::BFObject) =
+    try
+        pyisinstance(x.py, pyimport("plotly.basedatatypes").BaseFigure)
+    catch
+        false
+    end
+
+function _open_plotly_in_browser(x::BFObject)
+    path = tempname() * ".html"
+    x.py.write_html(path)
+    pyimport("webbrowser").open("file://" * path)
+    println("Plotly figure opened in the browser: ", path)
+    return nothing
+end
+
+# Terminal REPL: it can only show text, so open plotly figures (m.diag.forest(), ...)
+# in the browser instead of printing the figure dict. Other displays (VS Code,
+# Jupyter, Pluto) render the figure's HTML themselves.
+function Base.display(d::REPL.REPLDisplay, x::BFObject)
+    _is_plotly_figure(x) && return _open_plotly_in_browser(x)
+    return invoke(display, Tuple{REPL.REPLDisplay,Any}, d, x)
+end
 
 # Allow pyconvert to work on BFObject
 PythonCall.pyconvert(T::Type, x::BFObject) = pyconvert(T, x.py)
@@ -449,13 +476,16 @@ macro pyplot(ex)
         local fig = nothing
         try
             # Run the user's plotting code
-            $(esc(ex))
+            local result = $(esc(ex))
 
             # Grab the current figure (it should still be alive)
             fig = plt.gcf()
 
             # Check if it has content
-            if length(fig.axes) > 0
+            if result isa BFObject && _is_plotly_figure(result)
+                # m.diag plots return plotly figures, not matplotlib ones
+                display(result)
+            elseif length(fig.axes) > 0
                 display(fig)
             else
                 println("⚠️ No plot was generated (Figure is empty).")
