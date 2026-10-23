@@ -1,6 +1,9 @@
+# Python side of PyBayesForge, resolved by CondaPkg on first use.
+# Versions of jax / numpyro / arviz are constrained by bayesforge itself
+# (pip resolves them from its requirements), so only bayesforge is pinned here.
 [deps]
-numpy = "==2.2.6"
+python = ">=3.12,<3.15"
 
 [pip.deps]
 ipython = ""
-bayesforge = "==0.0.48"
+bayesforge = { version = ">=0.0.59", extras = ["cpu"] }
