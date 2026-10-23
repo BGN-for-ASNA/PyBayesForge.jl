@@ -3,6 +3,7 @@ module PyBayesForge
 using PythonCall
 using CondaPkg
 using Tables
+import Distributed
 
 # Check if utils.jl exists in your folder, otherwise comment this out
 if isfile(joinpath(@__DIR__, "utils.jl"))
@@ -11,7 +12,7 @@ if isfile(joinpath(@__DIR__, "utils.jl"))
     export create_env, delete_env, install_package, update_package
 end
 
-export importBF, bf_draws, @BF, @pyplot, jnp, jax, pybuiltins, pydict, pylist
+export importBF, bf_draws, @BF, @pyplot, @sim, jnp, jax, pybuiltins, pydict, pylist
 
 # -------------------------------------------------------
 # BFObject Wrapper
@@ -69,6 +70,12 @@ _topy(a) = _is_table(a) ? pytable(a, :pandas) : a
 function Base.getproperty(x::BFObject, s::Symbol)
     if s === :py
         return getfield(x, :py)
+    end
+
+    # The only names answered in Julia rather than by the Python object:
+    # simulations must run Julia functions in Julia workers (src/simulate.jl).
+    if (s === :grid || s === :run_simulations) && _isbf(x)
+        return s === :grid ? bf_grid : bf_run_simulations
     end
 
     # Delegate to Python
@@ -482,6 +489,8 @@ const jax = BFObject(PythonCall.pynew())
 const pybuiltins = PythonCall.pybuiltins
 const pydict = PythonCall.pydict
 const pylist = PythonCall.pylist
+
+include("simulate.jl")
 
 # 2. Initialize JAX modules when the module loads
 function __init__()
