@@ -8,6 +8,19 @@ using Statistics
 
 m_has(m, k) = m.posteriors.__contains__(k)
 
+# run_simulations: @sim definitions must be at top level, where the workers
+# replay them.
+@sim sim_double(x) = 2x
+@sim function sim_twice(; N, seed)
+    println("hello ", N)
+    (twice = sim_double(N), s = seed)
+end
+@sim function sim_boom(; N)
+    N == 2 && error("boom")
+    (ok = true,)
+end
+@sim sim_any(; kw...) = (has_sim = haskey(kw, :sim), nc = get(kw, :num_chains, missing))
+
 @testset "PyBayesForge.jl" begin
 
     @testset "Module exports" begin
@@ -241,5 +254,57 @@ m_has(m, k) = m.posteriors.__contains__(k)
         elpd_jl = loo(idata).estimates.elpd
         elpd_py = pyconvert(Float64, m.py.diag.loo().elpd)
         @test abs(elpd_jl - elpd_py) < 0.1                             # two PSIS-LOO implementations
+    end
+
+    @testset "m.grid and m.run_simulations" begin
+        m = importBF(print_devices_found = false)
+        sim = pyimport("BayesForge.Parallel.simulate")
+
+        g = m.grid(N = [100, 500], b_true = [-0.8, 0.0, 0.8], reps = 4)
+        @test length(g) == 24
+        @test collect(keys(g[1])) == [:N, :b_true, :sim, :rep]
+        @test [r.sim for r in g] == 0:23          # 0-based, as in Python
+        @test nrow(DataFrame(g)) == 24             # a Tables.jl row table
+
+        # serial and 2 worker processes agree; seeds come from Python
+        rs = m.run_simulations(sim_twice, m.grid(N = 1:4); backend = :serial, progress = false)
+        rp = m.run_simulations(sim_twice, m.grid(N = 1:4); workers = 2, progress = false)
+        key(r) = (r.sim, r.N, r.seed, r.twice)
+        @test key.(rs) == key.(rp)
+        @test length(unique(r.worker for r in rp)) == 2
+        @test !any(r.worker == getpid() for r in rp)
+        @test rs[4].seed == pyconvert(Int, sim._derive_seed(0, 3))
+
+        # errors recorded per row, or raised
+        rb = @test_logs (:warn, r"first \(sim 1\): boom") match_mode = :any m.run_simulations(
+            sim_boom, m.grid(N = 1:3); workers = 2, progress = false)
+        @test [ismissing(r.error) for r in rb] == [true, false, true]
+        @test_throws ErrorException m.run_simulations(sim_boom, m.grid(N = 1:3);
+                                                      backend = :serial, on_error = :raise,
+                                                      progress = false)
+
+        # kw... receives every key; num_chains is injected
+        ra = m.run_simulations(sim_any, m.grid(N = 1:2); num_chains = 1, workers = 2,
+                               progress = false)
+        @test all(r.has_sim for r in ra)
+        @test all(r.nc == 1 for r in ra)
+
+        # progress lines
+        out = mktemp() do path, io
+            redirect_stdout(io) do
+                m.run_simulations(sim_twice, m.grid(N = 1:2); backend = :serial)
+            end
+            close(io)
+            read(path, String)
+        end
+        @test occursin("worker main | sim 0", out)
+        @test occursin("hello 1", out)
+
+        # returning the model is refused
+        r = m.run_simulations((; N) -> m, m.grid(N = 1); backend = :serial, progress = false)
+        @test occursin("cannot cross a process boundary", r[1].error)
+
+        # every other property is still Python's
+        @test m.fit isa PyBayesForge.BFObject
     end
 end
