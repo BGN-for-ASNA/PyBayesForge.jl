@@ -23,7 +23,9 @@ function ArviZ.convert_to_inference_data(m::PyBayesForge.BFObject)
         post[Symbol(pyconvert(String, k))] = _draws_first(_julia(samples[k]))
     end
     data = bf.data_on_model
-    ll = pyimport("numpyro.infer").log_likelihood(bf.model, samples; batch_ndims = 2, data...)
+    # A Python dict cannot be splatted as Julia keywords: turn it into Symbol => value pairs.
+    kw = (Symbol(pyconvert(String, k)) => data[k] for k in data.keys())
+    ll = pyimport("numpyro.infer").log_likelihood(bf.model, samples; batch_ndims = 2, kw...)
     loglik = Dict{Symbol,Any}()
     for k in ll.keys()
         loglik[Symbol(pyconvert(String, k))] = _draws_first(_julia(ll[k]))
