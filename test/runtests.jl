@@ -180,6 +180,7 @@ end
     @testset "@BF names observed sites after the obs variable" begin
         ex = PyBayesForge._add_inferred_names!(:(begin
             x = m.dist.normal(0, 5)
+            t2 = m.dist.track("t2", x * 2)
             m.dist.normal(x, 1, obs = y)
             m.dist.normal(x, 1, obs = y .- 1)
             m.dist.normal(x, 1, obs = y, name = "kept")
