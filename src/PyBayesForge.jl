@@ -3,6 +3,7 @@ module PyBayesForge
 using PythonCall
 using CondaPkg
 using Tables
+import Distributed
 import REPL
 
 # Check if utils.jl exists in your folder, otherwise comment this out
@@ -12,7 +13,7 @@ if isfile(joinpath(@__DIR__, "utils.jl"))
     export create_env, delete_env, install_package, update_package
 end
 
-export importBF, bf_draws, @BF, @pyplot, jnp, jax, pybuiltins, pydict, pylist
+export importBF, bf_draws, @BF, @pyplot, @sim, jnp, jax, pybuiltins, pydict, pylist
 
 # -------------------------------------------------------
 # BFObject Wrapper
@@ -96,6 +97,12 @@ _topy(a) = _is_table(a) ? pytable(a, :pandas) : a
 function Base.getproperty(x::BFObject, s::Symbol)
     if s === :py
         return getfield(x, :py)
+    end
+
+    # The only names answered in Julia rather than by the Python object:
+    # simulations must run Julia functions in Julia workers (src/simulate.jl).
+    if (s === :grid || s === :run_simulations) && _isbf(x)
+        return s === :grid ? bf_grid : bf_run_simulations
     end
 
     # Delegate to Python
@@ -369,6 +376,9 @@ _is_dist_call(f) = f isa Expr && f.head === :. && length(f.args) == 2 &&
                    f.args[1] isa Expr && f.args[1].head === :. &&
                    f.args[1].args[end] == QuoteNode(:dist)
 
+# m.dist.track(name, x) takes its name positionally: never add name= to it.
+_is_track_call(f) = _is_dist_call(f) && f.args[2] == QuoteNode(:track)
+
 function _has_name_kw(call::Expr)
     for a in call.args[2:end]
         a isa Expr || continue
@@ -394,13 +404,13 @@ end
 function _add_inferred_names!(ex)
     ex isa Expr || return ex
     if ex.head === :(=) && ex.args[1] isa Symbol && ex.args[2] isa Expr &&
-       ex.args[2].head === :call && _is_dist_call(ex.args[2].args[1]) && !_has_name_kw(ex.args[2])
+       ex.args[2].head === :call && _is_dist_call(ex.args[2].args[1]) && !_has_name_kw(ex.args[2]) && !_is_track_call(ex.args[2].args[1])
         push!(ex.args[2].args, Expr(:kw, :name, String(ex.args[1])))
     end
     # An observed site is named after the variable passed as obs (obs = y ->
     # "y"), "obs" for an expression; before, it defaulted to "x" in Python and
     # collided with a parameter called x. (Assignments were named just above.)
-    if ex.head === :call && _is_dist_call(ex.args[1]) && !_has_name_kw(ex)
+    if ex.head === :call && _is_dist_call(ex.args[1]) && !_has_name_kw(ex) && !_is_track_call(ex.args[1])
         obs = _kw_value(ex, :obs)
         obs === nothing || push!(ex.args, Expr(:kw, :name, obs isa Symbol ? String(obs) : "obs"))
     end
@@ -512,6 +522,8 @@ const jax = BFObject(PythonCall.pynew())
 const pybuiltins = PythonCall.pybuiltins
 const pydict = PythonCall.pydict
 const pylist = PythonCall.pylist
+
+include("simulate.jl")
 
 # 2. Initialize JAX modules when the module loads
 function __init__()
