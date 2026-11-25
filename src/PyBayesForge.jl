@@ -100,9 +100,18 @@ function Base.getproperty(x::BFObject, s::Symbol)
     end
 
     # The only names answered in Julia rather than by the Python object:
-    # simulations must run Julia functions in Julia workers (src/simulate.jl).
+    # simulations must run Julia functions in Julia workers (src/simulate.jl),
+    # and so must prior sensitivity (src/sensitivity.jl).
     if (s === :grid || s === :run_simulations) && _isbf(x)
         return s === :grid ? bf_grid : bf_run_simulations
+    end
+    if s === :prior_sensitivity && _isdiag(x)
+        return (args...; kw...) -> bf_prior_sensitivity(x, args...; kw...)
+    end
+    # Python creates m.diag inside m.fit, but `m.diag.prior_sensitivity(model, ...)`
+    # needs no posterior of `m` -- it fits its own models.
+    if s === :diag && _isbf(x) && !pyhasattr(x.py, "diag")
+        return BFObject(_new_diag())
     end
 
     # Delegate to Python
@@ -524,6 +533,7 @@ const pydict = PythonCall.pydict
 const pylist = PythonCall.pylist
 
 include("simulate.jl")
+include("sensitivity.jl")
 
 # 2. Initialize JAX modules when the module loads
 function __init__()
