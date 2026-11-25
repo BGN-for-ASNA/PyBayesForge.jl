@@ -535,8 +535,24 @@ const pylist = PythonCall.pylist
 include("simulate.jl")
 include("sensitivity.jl")
 
+# The CondaPkg environment must be self-contained: Python also puts the user
+# site-packages (~/.local/lib/python3.X/site-packages) on sys.path, and old
+# packages there (e.g. arviz 0.x) would shadow the ones CondaPkg installed.
+# Left alone when the user picked their own Python (JULIA_CONDAPKG_BACKEND=Null).
+function _drop_user_site()
+    CondaPkg.backend() === :Null && return nothing
+    pyexec("""
+    import os, site, sys
+    _usp = os.path.realpath(site.getusersitepackages())
+    sys.path[:] = [p for p in sys.path if os.path.realpath(p or ".") != _usp]
+    site.ENABLE_USER_SITE = False
+    """, Main)
+    return nothing
+end
+
 # 2. Initialize JAX modules when the module loads
 function __init__()
+    _drop_user_site()
     PythonCall.pycopy!(jnp.py, pyimport("jax.numpy"))
     PythonCall.pycopy!(jax.py, pyimport("jax"))
 end
