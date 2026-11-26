@@ -6,4 +6,4 @@ python = ">=3.12,<3.15"
 
 [pip.deps]
 ipython = ""
-bayesforge = { version = ">=0.0.59", extras = ["cpu"] }
+bayesforge = { version = ">=0.0.61", extras = ["cpu"] }
