@@ -20,6 +20,14 @@ end
     (ok = true,)
 end
 @sim sim_any(; kw...) = (has_sim = haskey(kw, :sim), nc = get(kw, :num_chains, missing))
+# prior_sensitivity: the model is fitted on the Julia workers, so it too must
+# be a top-level @sim definition.
+@sim function sens_model(m, weight, height; a_sd = 20.0, b_sd = 1.0)
+    a = m.dist.normal(178, a_sd, name = "a")
+    b = m.dist.log_normal(0, b_sd, name = "b")
+    s = m.dist.uniform(0, 50, name = "s")
+    m.dist.normal(a + b * weight, s, obs = height, shape = (weight.shape[0],))
+end
 
 @testset "PyBayesForge.jl" begin
 
@@ -307,5 +315,61 @@ end
 
         # every other property is still Python's
         @test m.fit isa PyBayesForge.BFObject
+    end
+
+    @testset "prior_sensitivity with a Julia model" begin
+        m = importBF(print_devices_found = false)
+        data_path = m.load.howell1(only_path = true)
+        m.data(data_path, sep = ";")
+        m.df = m.df[m.df.age > 18]
+        m.scale(data = ["weight"])
+        obs = Dict("weight" => m.df.weight.to_numpy(dtype = "float32"),
+                   "height" => m.df.height.to_numpy(dtype = "float32"))
+        priors = Dict("b_sd" => [0.5, 2.0])          # baseline + 2 fits
+        fit_kwargs = Dict("num_samples" => 100, "num_chains" => 1)
+
+        nrows(t) = pyconvert(Int, t.py.shape[0])
+        col(t, c) = pyconvert(Vector{String}, t[c].tolist())
+        num(t, c) = pyconvert(Vector{Float64}, t[c].tolist())
+
+        # m was never fitted: m.diag exists for prior sensitivity, which fits
+        # its own models, one per prior scenario, on Julia workers.
+        fig, table = m.diag.prior_sensitivity(sens_model; priors = priors, obs = obs,
+                                             fit_kwargs = fit_kwargs, workers = 2,
+                                             progress = false, return_results = true)
+        @test fig isa PyBayesForge.BFObject
+        @test pyisinstance(fig.py, pyimport("plotly.basedatatypes").BaseFigure)
+        @test nrows(table) == 9                      # 3 fits x (a, b, s)
+        @test col(table, "label") == repeat(["baseline", "b_sd=0.5", "b_sd=2.0"], inner = 3)
+        @test col(table, "varied") == repeat(["baseline", "b_sd", "b_sd"], inner = 3)
+        @test col(table, "param") == repeat(["a", "b", "s"], outer = 3)
+        @test all(isfinite, num(table, "mean")) && all(isfinite, num(table, "hdi_low"))
+        shift = num(table, "shift_sd")
+        @test shift[1:3] == [0.0, 0.0, 0.0]          # the baseline is its own reference
+        @test all(isfinite, shift)
+
+        # the same scenarios, in this process
+        _, tserial = m.diag.prior_sensitivity(sens_model; priors = priors, obs = obs,
+                                             fit_kwargs = fit_kwargs, backend = :serial,
+                                             progress = false, return_results = true)
+        @test nrows(tserial) == 9
+        @test col(tserial, "label") == col(table, "label")
+        @test col(tserial, "param") == col(table, "param")
+        @test num(tserial, "shift_sd")[1:3] == [0.0, 0.0, 0.0]
+
+        # plot = "shift" uses the other figure helper
+        @test m.diag.prior_sensitivity(sens_model; priors = priors, obs = obs,
+                                      fit_kwargs = fit_kwargs, backend = :serial,
+                                      progress = false, plot = "shift") isa PyBayesForge.BFObject
+
+        # a vector of posteriors you already have still goes to Python
+        posts = [Dict("a" => randn(200), "b" => randn(200)),
+                 Dict("a" => randn(200) .+ 1.0, "b" => randn(200))]
+        fig2 = m.diag.prior_sensitivity(posts, labels = ["weak", "strong"])
+        @test fig2 isa PyBayesForge.BFObject
+        @test pyisinstance(fig2.py, pyimport("plotly.basedatatypes").BaseFigure)
+
+        # priors are required when a model is passed
+        @test_throws ErrorException m.diag.prior_sensitivity(sens_model; obs = obs)
     end
 end

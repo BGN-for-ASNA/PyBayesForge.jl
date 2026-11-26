@@ -100,9 +100,18 @@ function Base.getproperty(x::BFObject, s::Symbol)
     end
 
     # The only names answered in Julia rather than by the Python object:
-    # simulations must run Julia functions in Julia workers (src/simulate.jl).
+    # simulations must run Julia functions in Julia workers (src/simulate.jl),
+    # and so must prior sensitivity (src/sensitivity.jl).
     if (s === :grid || s === :run_simulations) && _isbf(x)
         return s === :grid ? bf_grid : bf_run_simulations
+    end
+    if s === :prior_sensitivity && _isdiag(x)
+        return (args...; kw...) -> bf_prior_sensitivity(x, args...; kw...)
+    end
+    # Python creates m.diag inside m.fit, but `m.diag.prior_sensitivity(model, ...)`
+    # needs no posterior of `m` -- it fits its own models.
+    if s === :diag && _isbf(x) && !pyhasattr(x.py, "diag")
+        return BFObject(_new_diag())
     end
 
     # Delegate to Python
@@ -524,9 +533,26 @@ const pydict = PythonCall.pydict
 const pylist = PythonCall.pylist
 
 include("simulate.jl")
+include("sensitivity.jl")
+
+# The CondaPkg environment must be self-contained: Python also puts the user
+# site-packages (~/.local/lib/python3.X/site-packages) on sys.path, and old
+# packages there (e.g. arviz 0.x) would shadow the ones CondaPkg installed.
+# Left alone when the user picked their own Python (JULIA_CONDAPKG_BACKEND=Null).
+function _drop_user_site()
+    CondaPkg.backend() === :Null && return nothing
+    pyexec("""
+    import os, site, sys
+    _usp = os.path.realpath(site.getusersitepackages())
+    sys.path[:] = [p for p in sys.path if os.path.realpath(p or ".") != _usp]
+    site.ENABLE_USER_SITE = False
+    """, Main)
+    return nothing
+end
 
 # 2. Initialize JAX modules when the module loads
 function __init__()
+    _drop_user_site()
     PythonCall.pycopy!(jnp.py, pyimport("jax.numpy"))
     PythonCall.pycopy!(jax.py, pyimport("jax"))
 end
